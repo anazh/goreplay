@@ -225,6 +225,7 @@ func checkSettings() {
 	if Settings.CopyBufferSize < 1 {
 		Settings.CopyBufferSize.Set("5mb")
 	}
+	Settings.OutputHTTPConfig.TranHost = Settings.InputRAW[0]
 }
 
 var previousDebugTime = time.Now()

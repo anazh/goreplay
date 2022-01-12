@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -31,6 +32,7 @@ type response struct {
 
 // HTTPOutputConfig struct for holding http output configuration
 type HTTPOutputConfig struct {
+	TranHost       string        `json:"tran_host"`
 	HttpTran       bool          `json:"http_tran"`
 	TrackResponses bool          `json:"output-http-track-response"`
 	Stats          bool          `json:"output-http-stats"`
@@ -216,13 +218,23 @@ func (o *HTTPOutput) PluginRead() (*Message, error) {
 func (o *HTTPOutput) sendRequest(client *HTTPClient, msg *Message) {
 	formData := url.Values{}
 	if o.config.HttpTran { //do http copy to
-		formData.Add("meta", string(msg.Meta))
-		formData.Add("data", string(msg.Data))
+		meta := string(msg.Meta)
+		metas := strings.Split(meta, " ")
+		formData.Add("ask_type", metas[0])
+		formData.Add("ask_id", metas[1])
+		formData.Add("ask_time", metas[2])
+		if metas[0] == "1" {
+			req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(msg.Data)))
+			if err == nil {
+				formData.Add("url", req.RequestURI)
+				formData.Add("type", req.Method)
+				formData.Add("listen_port", o.config.TranHost)
+			}
+		}
 	}
 	if !isRequestPayload(msg.Meta) && !o.config.HttpTran {
 		return
 	}
-
 	uuid := payloadID(msg.Meta)
 	start := time.Now()
 	resp := []byte{}
