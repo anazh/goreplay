@@ -31,6 +31,7 @@ type response struct {
 
 // HTTPOutputConfig struct for holding http output configuration
 type HTTPOutputConfig struct {
+	HttpTran       bool          `json:"http_tran"`
 	TrackResponses bool          `json:"output-http-track-response"`
 	Stats          bool          `json:"output-http-stats"`
 	OriginalHost   bool          `json:"output-http-original-host"`
@@ -169,7 +170,8 @@ func (o *HTTPOutput) startWorker() {
 
 // PluginWrite writes message to this plugin
 func (o *HTTPOutput) PluginWrite(msg *Message) (n int, err error) {
-	if !isRequestPayload(msg.Meta) {
+
+	if !isRequestPayload(msg.Meta) && !o.config.HttpTran {
 		return len(msg.Data), nil
 	}
 
@@ -212,25 +214,40 @@ func (o *HTTPOutput) PluginRead() (*Message, error) {
 }
 
 func (o *HTTPOutput) sendRequest(client *HTTPClient, msg *Message) {
-	if !isRequestPayload(msg.Meta) {
+	formData := url.Values{}
+	if o.config.HttpTran { //do http copy to
+		formData.Add("meta", string(msg.Meta))
+		formData.Add("data", string(msg.Data))
+	}
+	if !isRequestPayload(msg.Meta) && !o.config.HttpTran {
 		return
 	}
 
 	uuid := payloadID(msg.Meta)
 	start := time.Now()
-	resp, err := client.Send(msg.Data)
-	stop := time.Now()
-
-	if err != nil {
-		Debug(1, fmt.Sprintf("[HTTP-OUTPUT] error when sending: %q", err))
-		return
+	resp := []byte{}
+	if o.config.HttpTran {
+		respin, err := client.sendTran(formData)
+		if err != nil {
+			Debug(1, fmt.Sprintf("[HTTP-OUTPUT] error when sending: %q", err))
+			return
+		}
+		resp = respin
+	} else {
+		respin, err := client.Send(msg.Data)
+		if err != nil {
+			Debug(1, fmt.Sprintf("[HTTP-OUTPUT] error when sending: %q", err))
+			return
+		}
+		resp = respin
 	}
+	stop := time.Now()
 	if resp == nil {
 		return
 	}
-
-	if o.config.TrackResponses {
-		o.responses <- &response{resp, uuid, start.UnixNano(), stop.UnixNano() - start.UnixNano()}
+	if o.config.TrackResponses { //is output resp
+		data := &response{resp, uuid, start.UnixNano(), stop.UnixNano() - start.UnixNano()}
+		o.responses <- data
 	}
 
 	if o.elasticSearch != nil {
@@ -283,6 +300,18 @@ func NewHTTPClient(config *HTTPOutputConfig) *HTTPClient {
 	return client
 }
 
+func (c *HTTPClient) sendTran(formData url.Values) ([]byte, error) {
+	resp, err := http.PostForm(c.config.url.String(), formData)
+	if err != nil {
+		return nil, err
+	}
+	if c.config.TrackResponses {
+		return httputil.DumpResponse(resp, true)
+	}
+	_ = resp.Body.Close()
+	return nil, nil
+}
+
 // Send sends an http request using client create by NewHTTPClient
 func (c *HTTPClient) Send(data []byte) ([]byte, error) {
 	var req *http.Request
@@ -293,6 +322,7 @@ func (c *HTTPClient) Send(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// we don't send CONNECT or OPTIONS request
 	if req.Method == http.MethodConnect {
 		return nil, nil

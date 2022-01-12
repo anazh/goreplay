@@ -127,6 +127,9 @@ run-3:
 run-arg:
 	sudo -E go run $(SOURCE) $(ARGS)
 
+run-4:
+	go run $(SOURCE) --input-raw-track-response --input-raw 127.0.0.1:8989 --output-http http://127.0.0.1:32000 --http-tran
+
 file-server:
 	go run $(SOURCE) file-server $(FADDR)
 

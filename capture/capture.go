@@ -225,6 +225,7 @@ func (l *Listener) Filter(ifi pcap.Interface) (filter string) {
 	}
 
 	if l.trackResponse {
+
 		responseFilter := portsFilter(l.Transport, "src", l.ports)
 
 		if len(hosts) != 0 && !l.Promiscuous {
@@ -357,7 +358,7 @@ func http1EndHint(m *tcp.Message) bool {
 	if m.MissingChunk() {
 		return false
 	}
-	
+
 	req, res := http1StartHint(m.Packets()[0])
 	return proto.HasFullPayload(m, m.PacketData()...) && (req || res)
 }
