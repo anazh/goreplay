@@ -230,7 +230,7 @@ func (o *HTTPOutput) sendRequest(client *HTTPClient, msg *Message) {
 			httpIndex := strings.Index(data, "HTTP/")
 			httpStatus := msg.Data[httpIndex : httpIndex+12]
 			statuss := strings.Split(string(httpStatus), " ")
-			if len(statuss) == 2 {
+			if len(statuss) >= 2 {
 				formData.Add("http_status", statuss[1])
 			}
 		}
