@@ -215,6 +215,8 @@ func (o *HTTPOutput) PluginRead() (*Message, error) {
 	return &msg, nil
 }
 
+//getheader
+
 func (o *HTTPOutput) sendRequest(client *HTTPClient, msg *Message) {
 	formData := url.Values{}
 	if o.config.HttpTran { //do http copy to
@@ -223,6 +225,15 @@ func (o *HTTPOutput) sendRequest(client *HTTPClient, msg *Message) {
 		formData.Add("ask_type", metas[0])
 		formData.Add("ask_id", metas[1])
 		formData.Add("ask_time", metas[2])
+		if metas[0] == "2" {
+			data := string(msg.Data)
+			httpIndex := strings.Index(data, "HTTP/")
+			httpStatus := msg.Data[httpIndex : httpIndex+12]
+			statuss := strings.Split(string(httpStatus), " ")
+			if len(statuss) == 2 {
+				formData.Add("http_status", statuss[1])
+			}
+		}
 		if metas[0] == "1" {
 			req, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(msg.Data)))
 			if err == nil {

@@ -128,7 +128,7 @@ run-arg:
 	sudo -E go run $(SOURCE) $(ARGS)
 
 run-4:
-	go run $(SOURCE) --input-raw-track-response --input-raw 127.0.0.1:8989 --output-http http://127.0.0.1:32000 --http-tran
+	go run $(SOURCE) --input-raw-track-response --input-raw 127.0.0.1:8988 --output-http http://127.0.0.1:32000 --http-tran
 
 build_local_linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o gor 
